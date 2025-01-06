@@ -70,6 +70,7 @@ class NovitaGenerator(Generator):
         data = {
             "messages": messages,
             "model": model,
+            "stream": True,
         }
 
         async with aiohttp.ClientSession() as client:
@@ -81,12 +82,16 @@ class NovitaGenerator(Generator):
             ) as response:
                 if response.status == 200:
                     async for line in response.content:
-                        json_line = json.loads(line)
-                        choice = json_line["choices"][0]
-                        yield {
-                            "message": choice["message"]["content"],
-                            "finish_reason": choice.get("finish_reason"),
-                        }
+                        if line.strip():
+                            line = line.decode("utf-8").strip()
+                            json_line = json.loads(line[5:])
+                            choice = json_line.get("choices")[0]
+                            yield {
+                                "message": choice.get("delta", {}).get("content", ""),
+                                "finish_reason": (
+                                    "stop" if choice.get("finish_reason", "") == "stop" else ""
+                                ),
+                            }
                 else:
                     error_message = await response.text()
                     yield  {"message": f"HTTP Error {response.status}: {error_message}", "finish_reason": "stop"}
