@@ -84,14 +84,19 @@ class NovitaGenerator(Generator):
                     async for line in response.content:
                         if line.strip():
                             line = line.decode("utf-8").strip()
-                            json_line = json.loads(line[5:])
-                            choice = json_line.get("choices")[0]
-                            yield {
-                                "message": choice.get("delta", {}).get("content", ""),
-                                "finish_reason": (
-                                    "stop" if choice.get("finish_reason", "") == "stop" else ""
-                                ),
-                            }
+                            if line == "data: [DONE]":
+                                yield {"message": "", "finish_reason": "stop"}
+                            else:
+                                if line.startswith("data:"):
+                                    line = line[5:].strip()
+                                json_line = json.loads(line)
+                                choice = json_line.get("choices")[0]
+                                yield {
+                                    "message": choice.get("delta", {}).get("content", ""),
+                                    "finish_reason": (
+                                        "stop" if choice.get("finish_reason", "") == "stop" else ""
+                                    ),
+                                }
                 else:
                     error_message = await response.text()
                     yield  {"message": f"HTTP Error {response.status}: {error_message}", "finish_reason": "stop"}
